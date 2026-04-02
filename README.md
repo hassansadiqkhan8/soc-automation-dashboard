@@ -11,7 +11,7 @@ This project simulates a real-world SOC environment:
 1. **Ingests security logs** from multiple sources (web server, SSH, firewall, IDS)
 2. **Runs 5 custom detection rules** to identify cyber attacks automatically
 3. **Maps alerts to MITRE ATT&CK framework** for standardized threat classification
-4. **Displays analytics** through an interactive dark-themed dashboard
+4. **Displays analytics** through an interactive dashboard
 5. **Sends alert notifications** via email or console
 
 ## 🚨 Detection Rules
