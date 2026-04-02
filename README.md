@@ -50,6 +50,4 @@ This project simulates a real-world SOC environment:
 👤 Author:
 Hassan Sadiq Khan
 
-GitHub: @hassansadiqkhan8
-
 Email: hassansadiqkhan8@gmail.com
