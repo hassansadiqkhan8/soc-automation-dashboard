@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Alerts - SOC Dashboard{% endblock %}
+{% block page_title %}🚨 Security Alerts{% endblock %}
+
+{% block content %}
+
+<!-- Filters -->
+<form method="GET" class="filters">
+    <select name="severity" class="filter-select">
+        <option value="">All Severities</option>
+        <option value="CRITICAL" {% if current_severity == 'CRITICAL' %}selected{% endif %}>Critical</option>
+        <option value="HIGH" {% if current_severity == 'HIGH' %}selected{% endif %}>High</option>
+        <option value="MEDIUM" {% if current_severity == 'MEDIUM' %}selected{% endif %}>Medium</option>
+        <option value="LOW" {% if current_severity == 'LOW' %}selected{% endif %}>Low</option>
+    </select>
+    
+    <select name="status" class="filter-select">
+        <option value="">All Statuses</option>
+        <option value="NEW" {% if current_status == 'NEW' %}selected{% endif %}>New</option>
+        <option value="INVESTIGATING" {% if current_status == 'INVESTIGATING' %}selected{% endif %}>Investigating</option>
+        <option value="RESOLVED" {% if current_status == 'RESOLVED' %}selected{% endif %}>Resolved</option>
+        <option value="FALSE_POSITIVE" {% if current_status == 'FALSE_POSITIVE' %}selected{% endif %}>False Positive</option>
+    </select>
+    
+    <select name="rule" class="filter-select">
+        <option value="">All Rules</option>
+        {% for rule in all_rules %}
+        <option value="{{ rule }}" {% if current_rule == rule %}selected{% endif %}>{{ rule }}</option>
+        {% endfor %}
+    </select>
+    
+    <input type="text" name="search" class="filter-input" 
+           placeholder="Search alerts..." value="{{ current_search }}">
+    
+    <button type="submit" class="filter-btn">Filter</button>
+    <a href="{% url 'dashboard:alert_list' %}" class="filter-btn secondary">Clear</a>
+</form>
+
+<!-- Results count -->
+<p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 14px;">
+    Showing {{ alerts|length }} alert(s)
+</p>
+
+<!-- Alerts Table -->
+<div class="panel">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Severity</th>
+                <th>Title</th>
+                <th>Rule</th>
+                <th>Source IP</th>
+                <th>MITRE Technique</th>
+                <th>Status</th>
+                <th>Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for alert in alerts %}
+            <tr class="alert-row" data-url="{% url 'dashboard:alert_detail' alert.id %}">
+                <td>
+                    <span class="badge badge-{{ alert.severity|lower }}">
+                        {{ alert.severity }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{% url 'dashboard:alert_detail' alert.id %}" class="alert-link">
+                        {{ alert.title|truncatechars:50 }}
+                    </a>
+                </td>
+                <td style="color: var(--text-secondary);">{{ alert.rule_name }}</td>
+                <td style="font-family: monospace; color: var(--accent-cyan);">{{ alert.source_ip }}</td>
+                <td><span class="mitre-tag">{{ alert.mitre_technique|default:"N/A" }}</span></td>
+                <td><span class="badge badge-{{ alert.status|lower }}">{{ alert.status }}</span></td>
+                <td style="font-size: 12px; color: var(--text-muted);">{{ alert.timestamp|date:"M d, H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    No alerts match your filters
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

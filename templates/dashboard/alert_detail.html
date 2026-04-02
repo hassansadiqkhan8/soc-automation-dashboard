@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block title %}Alert: {{ alert.title }} - SOC Dashboard{% endblock %}
+{% block page_title %}Alert Investigation{% endblock %}
+
+{% block content %}
+
+<!-- Back button -->
+<a href="{% url 'dashboard:alert_list' %}" 
+   style="color: var(--accent-cyan); text-decoration: none; font-size: 14px; margin-bottom: 20px; display: inline-block;">
+    ← Back to Alerts
+</a>
+
+<!-- Alert Header -->
+<div class="panel" style="margin-bottom: 20px;">
+    <div class="panel-body">
+        <div class="alert-detail-header">
+            <div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <span class="badge badge-{{ alert.severity|lower }}" 
+                          style="font-size: 13px; padding: 5px 14px;">
+                        {{ alert.severity }}
+                    </span>
+                    <span class="badge badge-{{ alert.status|lower }}"
+                          style="font-size: 13px; padding: 5px 14px;">
+                        {{ alert.status }}
+                    </span>
+                </div>
+                <h2 class="alert-detail-title">{{ alert.title }}</h2>
+                <p style="color: var(--text-secondary);">{{ alert.description }}</p>
+            </div>
+        </div>
+        <div id="alert-detail" data-alert-id="{{ alert.id }}" style="display:none;"></div>
+        
+        <!-- Status Update Buttons -->
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+            <span style="font-size: 13px; color: var(--text-secondary); margin-right: 10px;">Update Status:</span>
+            <div class="status-buttons" style="display: inline-flex;">
+                <button class="status-btn {% if alert.status == 'NEW' %}active{% endif %}"
+                        data-status-action="NEW">New</button>
+                <button class="status-btn {% if alert.status == 'INVESTIGATING' %}active{% endif %}"
+                        data-status-action="INVESTIGATING">Investigating</button>
+                <button class="status-btn {% if alert.status == 'RESOLVED' %}active{% endif %}"
+                        data-status-action="RESOLVED">Resolved</button>
+                <button class="status-btn {% if alert.status == 'FALSE_POSITIVE' %}active{% endif %}"
+                        data-status-action="FALSE_POSITIVE">False Positive</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Grid -->
+<div class="detail-grid">
+    <div class="panel">
+        <div class="panel-body">
+            <div class="detail-item" style="margin-bottom: 15px;">
+                <div class="detail-label">Source IP</div>
+                <div class="detail-value" style="font-family: monospace; color: var(--severity-critical);">
+                    {{ alert.source_ip|default:"N/A" }}
+                </div>
+            </div>
+            <div class="detail-item" style="margin-bottom: 15px;">
+                <div class="detail-label">Detection Rule</div>
+                <div class="detail-value">{{ alert.rule_name }}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Timestamp</div>
+                <div class="detail-value">{{ alert.timestamp }}</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="panel">
+        <div class="panel-body">
+            <div class="detail-item" style="margin-bottom: 15px;">
+                <div class="detail-label">MITRE ATT&CK Tactic</div>
+                <div class="detail-value">{{ alert.mitre_tactic|default:"N/A" }}</div>
+            </div>
+            <div class="detail-item" style="margin-bottom: 15px;">
+                <div class="detail-label">MITRE ATT&CK Technique</div>
+                <div class="detail-value">
+                    {% if alert.mitre_technique %}
+                    <span class="mitre-tag">{{ alert.mitre_technique }}</span>
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Alert ID</div>
+                <div class="detail-value">#{{ alert.id }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Evidence -->
+<div class="panel" style="margin-bottom: 20px;">
+    <div class="panel-header">
+        <h3 class="panel-title">📄 Evidence / Raw Logs</h3>
+    </div>
+    <div class="panel-body">
+        <div class="evidence-box">{{ alert.evidence|default:"No evidence collected" }}</div>
+    </div>
+</div>
+
+<!-- Related Logs from Same IP -->
+{% if related_logs %}
+<div class="panel" style="margin-bottom: 20px;">
+    <div class="panel-header">
+        <h3 class="panel-title">📋 Related Logs from {{ alert.source_ip }}</h3>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Source</th>
+                <th>Action</th>
+                <th>Destination</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in related_logs %}
+            <tr>
+                <td style="font-size: 12px; color: var(--text-muted);">
+                    {{ log.timestamp|date:"M d, H:i:s" }}
+                </td>
+                <td>
+                    <span class="badge badge-info">{{ log.source_type }}</span>
+                </td>
+                <td style="font-family: monospace; font-size: 12px;">
+                    {{ log.action|truncatechars:60 }}
+                </td>
+                <td style="font-family: monospace; color: var(--accent-cyan); font-size: 12px;">
+                    {{ log.destination_ip }}:{{ log.destination_port }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Related Alerts -->
+{% if related_alerts %}
+<div class="panel">
+    <div class="panel-header">
+        <h3 class="panel-title">🔗 Related Alerts</h3>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Severity</th>
+                <th>Title</th>
+                <th>Rule</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for related in related_alerts %}
+            <tr class="alert-row" data-url="{% url 'dashboard:alert_detail' related.id %}">
+                <td>
+                    <span class="badge badge-{{ related.severity|lower }}">{{ related.severity }}</span>
+                </td>
+                <td>
+                    <a href="{% url 'dashboard:alert_detail' related.id %}" class="alert-link">
+                        {{ related.title }}
+                    </a>
+                </td>
+                <td style="color: var(--text-secondary);">{{ related.rule_name }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const alertId = parseInt(document.getElementById('alert-detail').dataset.alertId, 10);
+
+    // Handle status update buttons
+    document.querySelectorAll('[data-status-action]').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const newStatus = this.dataset.statusAction;
+            updateStatus(alertId, newStatus);
+        });
+    });
+
+    // Handle related alert row clicks
+    document.querySelectorAll('.alert-row[data-url]').forEach(row => {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'A') {
+                window.location = this.dataset.url;
+            }
+        });
+    });
+
+    function updateStatus(alertId, newStatus) {
+        fetch(`/alerts/${alertId}/update-status/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: `status=${newStatus}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+</script>
+{% endblock %}

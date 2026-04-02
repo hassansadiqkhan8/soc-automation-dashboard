@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+
+{% block title %}SOC Dashboard - Overview{% endblock %}
+{% block page_title %}Security Operations Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Summary Stat Cards -->
+<div class="stats-grid">
+    <div class="stat-card total">
+        <div class="stat-label">Total Alerts</div>
+        <div class="stat-value">{{ total_alerts }}</div>
+    </div>
+    <div class="stat-card critical">
+        <div class="stat-label">Critical</div>
+        <div class="stat-value">{{ critical_count }}</div>
+    </div>
+    <div class="stat-card high">
+        <div class="stat-label">High</div>
+        <div class="stat-value">{{ high_count }}</div>
+    </div>
+    <div class="stat-card medium">
+        <div class="stat-label">Medium</div>
+        <div class="stat-value">{{ medium_count }}</div>
+    </div>
+    <div class="stat-card low">
+        <div class="stat-label">Low</div>
+        <div class="stat-value">{{ low_count }}</div>
+    </div>
+    <div class="stat-card info">
+        <div class="stat-label">Total Logs</div>
+        <div class="stat-value">{{ total_logs }}</div>
+    </div>
+    <div class="stat-card critical">
+        <div class="stat-label">Unique Attackers</div>
+        <div class="stat-value">{{ unique_attackers }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Unresolved</div>
+        <div class="stat-value" style="color: var(--severity-high);">{{ new_count }}</div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid-2">
+    <!-- Alerts by Severity Chart -->
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title">Alerts by Severity</h3>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="severityChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alerts by Rule Chart -->
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title">Alerts by Detection Rule</h3>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="ruleChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Alerts Table + MITRE + Top Attackers -->
+<div class="grid-2">
+    <!-- Recent Alerts -->
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title">🚨 Recent Alerts</h3>
+            <a href="{% url 'dashboard:alert_list' %}" 
+               style="color: var(--accent-cyan); text-decoration: none; font-size: 13px;">
+                View All →
+            </a>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Severity</th>
+                    <th>Title</th>
+                    <th>Source IP</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in recent_alerts %}
+                <tr class="alert-row" data-url="{% url 'dashboard:alert_detail' alert.id %}">
+                    <td>
+                        <span class="badge badge-{{ alert.severity|lower }}">
+                            {{ alert.severity }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'dashboard:alert_detail' alert.id %}" class="alert-link">
+                            {{ alert.title|truncatechars:40 }}
+                        </a>
+                    </td>
+                    <td style="font-family: monospace; color: var(--accent-cyan);">
+                        {{ alert.source_ip }}
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ alert.status|lower }}">
+                            {{ alert.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-muted);">
+                        No alerts detected
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Right Column -->
+    <div>
+        <!-- Top Attackers -->
+        <div class="panel" style="margin-bottom: 20px;">
+            <div class="panel-header">
+                <h3 class="panel-title">🎯 Top Attacker IPs</h3>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Alert Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attacker in top_attackers %}
+                    <tr>
+                        <td style="font-family: monospace; color: var(--severity-critical);">
+                            {{ attacker.source_ip }}
+                        </td>
+                        <td>{{ attacker.count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- MITRE ATT&CK Mapping -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3 class="panel-title">🗺️ MITRE ATT&CK Coverage</h3>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Technique</th>
+                        <th>Tactic</th>
+                        <th>Hits</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in mitre_breakdown %}
+                    <tr>
+                        <td><span class="mitre-tag">{{ item.mitre_technique }}</span></td>
+                        <td>{{ item.mitre_tactic }}</td>
+                        <td>{{ item.count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Active Detection Rules -->
+<div class="panel">
+    <div class="panel-header">
+        <h3 class="panel-title">⚙️ Active Detection Rules</h3>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Rule Name</th>
+                <th>Description</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for rule in active_rules %}
+            <tr>
+                <td style="font-weight: 600;">{{ rule.name }}</td>
+                <td style="color: var(--text-secondary);">{{ rule.description }}</td>
+                <td>
+                    {% if rule.is_active %}
+                    <span class="badge badge-low">ACTIVE</span>
+                    {% else %}
+                    <span class="badge badge-critical">DISABLED</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Handle alert row clicks
+    document.querySelectorAll('.alert-row[data-url]').forEach(row => {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'A') {
+                window.location = this.dataset.url;
+            }
+        });
+    });
+
+    // ===== SEVERITY PIE CHART =====
+    const severityData = JSON.parse('{{ alerts_by_severity_json|escapejs }}');
+    
+    const severityColors = {
+        'CRITICAL': '#ef4444',
+        'HIGH': '#f97316',
+        'MEDIUM': '#eab308',
+        'LOW': '#22c55e',
+        'INFO': '#3b82f6',
+    };
+    
+    new Chart(document.getElementById('severityChart'), {
+        type: 'doughnut',
+        data: {
+            labels: severityData.map(item => item.severity),
+            datasets: [{
+                data: severityData.map(item => item.count),
+                backgroundColor: severityData.map(item => severityColors[item.severity] || '#64748b'),
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#94a3b8',
+                        padding: 15,
+                        font: { size: 12 }
+                    }
+                }
+            }
+        }
+    });
+    
+    // ===== ALERTS BY RULE BAR CHART =====
+    const ruleData = JSON.parse('{{ alerts_by_rule_json|escapejs }}');
+    
+    new Chart(document.getElementById('ruleChart'), {
+        type: 'bar',
+        data: {
+            labels: ruleData.map(item => item.rule_name.replace(' Detection', '')),
+            datasets: [{
+                label: 'Alerts',
+                data: ruleData.map(item => item.count),
+                backgroundColor: '#06b6d4',
+                borderRadius: 6,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(45, 55, 72, 0.5)' },
+                    ticks: { color: '#94a3b8' }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { color: '#e2e8f0', font: { size: 12 } }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

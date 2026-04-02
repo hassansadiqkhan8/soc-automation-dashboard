@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}Log Viewer - SOC Dashboard{% endblock %}
+{% block page_title %}📋 Log Viewer{% endblock %}
+
+{% block content %}
+
+<!-- Filters -->
+<form method="GET" class="filters">
+    <select name="source" class="filter-select">
+        <option value="">All Sources</option>
+        <option value="webserver" {% if current_source == 'webserver' %}selected{% endif %}>Web Server</option>
+        <option value="ssh" {% if current_source == 'ssh' %}selected{% endif %}>SSH</option>
+        <option value="firewall" {% if current_source == 'firewall' %}selected{% endif %}>Firewall</option>
+        <option value="ids" {% if current_source == 'ids' %}selected{% endif %}>IDS</option>
+    </select>
+    
+    <input type="text" name="ip" class="filter-input" 
+           placeholder="Filter by IP..." value="{{ current_ip }}">
+    
+    <input type="text" name="search" class="filter-input" 
+           placeholder="Search logs..." value="{{ current_search }}"
+           style="width: 300px;">
+    
+    <button type="submit" class="filter-btn">Search</button>
+    <a href="{% url 'dashboard:log_viewer' %}" class="filter-btn secondary">Clear</a>
+</form>
+
+<p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 14px;">
+    Showing {{ logs|length }} log entries (latest 200)
+</p>
+
+<!-- Log Entries -->
+<div class="panel">
+    <div class="panel-header">
+        <h3 class="panel-title">Raw Log Entries</h3>
+    </div>
+    
+    <div style="max-height: 700px; overflow-y: auto;">
+        {% for log in logs %}
+        <div class="log-line">
+            <span class="log-timestamp">{{ log.timestamp|date:"Y-m-d H:i:s" }}</span>
+            &nbsp;|&nbsp;
+            <span class="badge badge-info" style="font-size: 10px; padding: 1px 6px;">{{ log.source_type }}</span>
+            &nbsp;
+            <span class="log-ip">{{ log.source_ip }}</span>
+            →
+            <span class="log-ip">{{ log.destination_ip }}:{{ log.destination_port }}</span>
+            &nbsp;|&nbsp;
+            <span class="log-action">{{ log.action|truncatechars:80 }}</span>
+        </div>
+        {% empty %}
+        <div style="padding: 40px; text-align: center; color: var(--text-muted);">
+            No log entries found
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

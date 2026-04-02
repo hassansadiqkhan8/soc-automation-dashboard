@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics - SOC Dashboard{% endblock %}
+{% block page_title %}📈 Security Analytics{% endblock %}
+
+{% block content %}
+
+<!-- Row 1: Severity + Rules -->
+<div class="grid-2">
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title">Alerts by Severity</h3>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="severityPie"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title">Alerts by Detection Rule</h3>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="ruleBar"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 2: MITRE + Log Sources -->
+<div class="grid-2">
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title">MITRE ATT&CK Tactics</h3>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="mitreChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title">Log Sources Distribution</h3>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="sourceChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 3: Top IPs + Top Ports -->
+<div class="grid-2">
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title">Top Source IPs (by log volume)</h3>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="ipChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title">Top Targeted Ports</h3>
+        </div>
+        <div class="panel-body">
+            <div class="chart-container">
+                <canvas id="portChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const chartColors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#06b6d4', '#ec4899'];
+    
+    const severityColors = {
+        'CRITICAL': '#ef4444',
+        'HIGH': '#f97316',
+        'MEDIUM': '#eab308',
+        'LOW': '#22c55e',
+        'INFO': '#3b82f6',
+    };
+
+    const chartDefaults = {
+        color: '#94a3b8',
+        borderColor: 'rgba(45, 55, 72, 0.5)',
+    };
+
+    // ===== 1. SEVERITY PIE =====
+    const sevData = JSON.parse('{{ alerts_by_severity_json|escapejs }}');
+    new Chart(document.getElementById('severityPie'), {
+        type: 'doughnut',
+        data: {
+            labels: sevData.map(i => i.severity),
+            datasets: [{
+                data: sevData.map(i => i.count),
+                backgroundColor: sevData.map(i => severityColors[i.severity]),
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 12 } }
+            }
+        }
+    });
+
+    // ===== 2. RULE BAR =====
+    const ruleData = JSON.parse('{{ alerts_by_rule_json|escapejs }}');
+    new Chart(document.getElementById('ruleBar'), {
+        type: 'bar',
+        data: {
+            labels: ruleData.map(i => i.rule_name.replace(' Detection', '')),
+            datasets: [{
+                label: 'Count',
+                data: ruleData.map(i => i.count),
+                backgroundColor: '#06b6d4',
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: chartDefaults.borderColor }, ticks: { color: chartDefaults.color } },
+                y: { grid: { display: false }, ticks: { color: '#e2e8f0' } }
+            }
+        }
+    });
+
+    // ===== 3. MITRE TACTICS =====
+    const mitreData = JSON.parse('{{ alerts_by_tactic_json|escapejs }}');
+    new Chart(document.getElementById('mitreChart'), {
+        type: 'polarArea',
+        data: {
+            labels: mitreData.map(i => i.mitre_tactic),
+            datasets: [{
+                data: mitreData.map(i => i.count),
+                backgroundColor: chartColors.map(c => c + '80'),
+                borderColor: chartColors,
+                borderWidth: 1,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 12 } }
+            },
+            scales: {
+                r: {
+                    grid: { color: 'rgba(45, 55, 72, 0.5)' },
+                    ticks: { display: false },
+                }
+            }
+        }
+    });
+
+    // ===== 4. LOG SOURCES =====
+    const srcData = JSON.parse('{{ logs_by_source_json|escapejs }}');
+    new Chart(document.getElementById('sourceChart'), {
+        type: 'doughnut',
+        data: {
+            labels: srcData.map(i => i.source_type),
+            datasets: [{
+                data: srcData.map(i => i.count),
+                backgroundColor: ['#3b82f6', '#22c55e', '#f97316', '#8b5cf6'],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 12 } }
+            }
+        }
+    });
+
+    // ===== 5. TOP IPs =====
+    const ipData = JSON.parse('{{ top_source_ips_json|escapejs }}');
+    new Chart(document.getElementById('ipChart'), {
+        type: 'bar',
+        data: {
+            labels: ipData.map(i => i.source_ip),
+            datasets: [{
+                label: 'Logs',
+                data: ipData.map(i => i.count),
+                backgroundColor: '#8b5cf6',
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                y: { grid: { color: chartDefaults.borderColor }, ticks: { color: chartDefaults.color } }
+            }
+        }
+    });
+
+    // ===== 6. TOP PORTS =====
+    const portData = JSON.parse('{{ top_ports_json|escapejs }}');
+    new Chart(document.getElementById('portChart'), {
+        type: 'bar',
+        data: {
+            labels: portData.map(i => 'Port ' + i.destination_port),
+            datasets: [{
+                label: 'Hits',
+                data: portData.map(i => i.count),
+                backgroundColor: '#f97316',
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                y: { grid: { color: chartDefaults.borderColor }, ticks: { color: chartDefaults.color } }
+            }
+        }
+    });
+</script>
+{% endblock %}
